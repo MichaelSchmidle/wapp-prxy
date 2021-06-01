@@ -1,0 +1,57 @@
+version: "2"
+networks:
+  wapps:
+    external:
+      name: "wapps"
+services:
+  mysql-5b92e7b8f153f670e4e0ea257250a3dc:
+    environment:
+      - "MYSQL_DATABASE=${MYSQL_DATABASE}"
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}"
+      - "MYSQL_USER=${MYSQL_USER}"
+      - "MYSQL_PASSWORD=${MYSQL_PASSWORD}"
+    image: "mysql:5"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - "wapps"
+    restart: "always"
+    volumes:
+      - "mysql:/var/lib/mysql"
+  npm:
+    environment:
+      - "DB_MYSQL_HOST=mysql-5b92e7b8f153f670e4e0ea257250a3dc"
+      - "DB_MYSQL_PORT=3306"
+      - "DB_MYSQL_NAME=${MYSQL_DATABASE}"
+      - "DB_MYSQL_USER=${MYSQL_USER}"
+      - "DB_MYSQL_PASSWORD=${MYSQL_PASSWORD}"
+    image: "jc21/nginx-proxy-manager"
+    networks:
+      - "wapps"
+    ports:
+      - "${IP}:80:80/tcp"
+      - "${IP}:443:443/tcp"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.http.routers.prxy-http.entrypoints=http"
+      - "traefik.http.routers.prxy-http.middlewares=wapps-mgmt"
+      - "traefik.http.routers.prxy-http.rule=Host(`${HOST}`)"
+      - "traefik.http.routers.prxy-https.entrypoints=https"
+      - "traefik.http.routers.prxy-https.middlewares=wapps-mgmt"
+      - "traefik.http.routers.prxy-https.rule=Host(`${HOST}`)"
+      - "traefik.http.routers.prxy-https.tls.certResolver=wapps"
+      - "traefik.http.routers.prxy-https-mgmt.entrypoints=https-mgmt"
+      - "traefik.http.routers.prxy-https-mgmt.rule=Host(`${HOST}`)"
+      - "traefik.http.routers.prxy-https-mgmt.tls.certResolver=wapps"
+      - "traefik.http.services.prxy.loadbalancer.server.port=81"
+    restart: "always"
+    volumes:
+      - "data:/data"
+      - "letsencrypt:/etc/letsencrypt"
+volumes:
+  mysql:
+    driver: "local"
+  data:
+    driver: "local"
+  letsencrypt:
+    driver: "local"
